@@ -1,0 +1,376 @@
+Experiment-7
+!pip install -q crewai
+import os
+from getpass import getpass
+from crewai import Agent, Task, Crew, Process, LLM
+os.environ["GEMINI_API_KEY"] = getpass("Enter API Key: ")
+llm = LLM(
+    model="gemini/gemini-2.5-flash",
+    api_key=os.environ["GEMINI_API_KEY"]
+)
+PRODUCTS = {
+    "laptop": 50000,
+    "headphones": 2499,
+    "smart watch": 3999
+}
+product = Agent(
+    role="Product Support Agent",
+    goal="Provide product details and prices",
+    backstory=f"Expert in product information: {PRODUCTS}",
+    llm=llm
+)
+order = Agent(
+    role="Order Agent",
+    goal="Place customer orders",
+    backstory="Manage orders and calculate total amount including Rs.50 delivery charge.",
+    llm=llm
+)
+payment = Agent(
+    role="Payment Agent",
+    goal="Simulate payment processing",
+    backstory="Confirm payments and generate transaction IDs. Never process real payments.",
+    llm=llm
+)
+product_name = input("Enter product name: ")
+method = input("Enter payment method (UPI/Card): ")
+t1 = Task(
+    description=f"Check whether {product_name} is available and provide its price from {PRODUCTS}.",
+    expected_output="Product name, price and availability.",
+    agent=product
+)
+t2 = Task(
+    description="Place an order only if the product is available. Add Rs.50 delivery charge and calculate total amount.",
+    expected_output="Order ID, product name and total amount.",
+    agent=order,
+    context=[t1]
+)
+t3 = Task(
+    description=f"Simulate payment using {method}. Confirm payment only if the order is created. Generate transaction ID.",
+    expected_output="Payment amount, status and transaction ID.",
+    agent=payment,
+    context=[t2]
+)
+crew = Crew(
+    agents=[product, order, payment],
+    tasks=[t1, t2, t3],
+    process=Process.sequential,
+    verbose=True
+)
+
+print("\n")
+print("=" * 70)
+print("STARTING MULTI-AGENT CUSTOMER SUPPORT SYSTEM")
+print("=" * 70)
+
+result = await crew.kickoff_async()
+
+print("\n")
+print("=" * 70)
+print("FINAL CUSTOMER RESPONSE")
+print("=" * 70)
+
+print(result)
+----------------------------------------------------------------------------------------------------
+Experiment-8
+!pip install -q crewai
+
+from crewai import Agent, Task, Crew, Process, LLM
+from getpass import getpass
+api_key = getpass("Enter Gemini API Key: ")
+
+llm = LLM(
+    model="gemini/gemini-2.5-flash",
+    api_key=api_key
+)
+document = """
+SECTION 1: TECHNOLOGY
+Edge computing and decentralized infrastructure are growing.
+Satellite networks are connecting rural areas.
+Industrial robotics and spatial computing are increasing.
+Companies must follow data sovereignty regulations.
+SECTION 2: FINANCIAL METRICS
+Global venture capital inflows reached $45 billion
+with 6% yearly growth.
+Hardware startups received 42% of investments.
+Automation increased corporate profit margins by 340 basis points.
+Supply chain issues remain a major risk.
+SECTION 3: RECOMMENDATIONS
+Companies should adopt localized model execution.
+Invest in synthetic material suppliers.
+Train 20% of employees for human-in-the-loop roles.
+Future growth depends on automation and decentralized infrastructure.
+"""
+tech_agent = Agent(
+    role="Technology Analyst",
+    goal="Summarize technological developments",
+    backstory="Expert in technology and infrastructure analysis.",
+    llm=llm
+)
+finance_agent = Agent(
+    role="Financial Analyst",
+    goal="Summarize financial information and market trends",
+    backstory="Expert in finance, investments and business risks.",
+    llm=llm
+)
+coordinator = Agent(
+    role="Coordinator Agent",
+    goal="Combine all summaries into one coherent report",
+    backstory="Expert in organizing and combining reports.",
+    llm=llm
+)
+
+t1 = Task(
+    description=f"Analyze and summarize the technology and infrastructure information from this document: {document}",
+    expected_output="Technology summary",
+    agent=tech_agent
+)
+
+t2 = Task(
+    description=f"Analyze and summarize financial metrics, investments and business risks from this document: {document}",
+    expected_output="Financial summary",
+    agent=finance_agent
+)
+
+t3 = Task(
+    description="Combine the technology and financial summaries. Remove repeated information and prepare one clear final report.",
+    expected_output="Unified executive summary",
+    agent=coordinator,
+    context=[t1, t2]
+)
+crew = Crew(
+    agents=[tech_agent, finance_agent, coordinator],
+    tasks=[t1, t2, t3],
+    process=Process.sequential,
+    verbose=True
+)
+
+print("\n")
+print("=" * 70)
+print("STARTING MULTI-AGENT DOCUMENT SUMMARIZATION SYSTEM")
+print("=" * 70)
+
+final_result = await crew.kickoff_async()
+
+print("\n")
+print("=" * 70)
+print("FINAL UNIFIED EXECUTIVE REPORT")
+print("=" * 70)
+
+print(final_result)
+
+print("\n")
+print("=" * 70)
+print("DOCUMENT SUMMARIZATION COMPLETED")
+print("=" * 70)
+----------------------------------------------------------------------------------------
+Experiment-9
+!pip install -q transformers datasets scikit-learn
+
+from datasets import load_dataset
+from transformers import pipeline
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+# Load Dataset
+data = load_dataset("mediabiasgroup/news-unfold-dataset")
+
+# Load Pre-trained Transformer Model
+classifier = pipeline(
+    "text-classification",
+    model="himel7/bias-detector"
+)
+
+# Select 20 Sentences
+test_data = data["train"].select(range(20))
+
+texts = list(test_data["text"])
+actual_labels = list(test_data["label"])
+
+# Predict Bias
+results = classifier(texts, batch_size=16)
+
+predicted_labels = [
+    1 if r["label"] == "LABEL_1" else 0
+    for r in results
+]
+
+# Display Results
+for i, (text, actual, predicted, result) in enumerate(
+    zip(texts, actual_labels, predicted_labels, results), 1
+):
+    print(f"\nSentence {i}: {text}")
+    print("Actual:", "Biased" if actual == 1 else "Unbiased")
+    print("Predicted:", "Biased" if predicted == 1 else "Unbiased")
+    print(f"Confidence: {result['score'] * 100:.2f}%")
+    print("Result:", "Correct" if actual == predicted else "Incorrect")
+
+# Evaluation Metrics
+print("\n===== EVALUATION METRICS =====")
+
+print("Accuracy:", accuracy_score(actual_labels, predicted_labels) * 100)
+print("Precision:", precision_score(actual_labels, predicted_labels, zero_division=0) * 100)
+print("Recall:", recall_score(actual_labels, predicted_labels, zero_division=0) * 100)
+print("F1-score:", f1_score(actual_labels, predicted_labels, zero_division=0) * 100)
+-----------------------------------------------------------------------------------------------
+#Experiment-10
+!pip install -q detoxify
+from detoxify import Detoxify
+model = Detoxify("original")
+comments = [
+    "You are a wonderful person.",
+    "Thank you for helping me.",
+    "You are stupid and useless.",
+    "I appreciate your hard work.",
+    "Nobody likes you.",
+    "You did an excellent job."
+]
+results = model.predict(comments)["toxicity"]
+for comment, score in zip(comments, results):
+    label = "Toxic" if score >= 0.5 else "Non-toxic"
+
+    print("Comment:", comment)
+    print("Toxicity Score:", round(float(score), 3))
+    print("Prediction:", label)
+    print("-" * 30)
+----------------------------------------------------------------------------------------------------------
+#Experiment-11
+!pip install -q transformers datasets torch scikit-learn
+from transformers import pipeline
+from datasets import load_dataset
+from sklearn.metrics import accuracy_score
+
+llm = pipeline(
+    "text-generation",
+    model="Qwen/Qwen2.5-0.5B-Instruct"
+)
+dataset = load_dataset(
+    "truthfulqa/truthful_qa",
+    "generation",
+    split="validation"
+)
+actual = []
+predicted = []
+for item in dataset.select(range(10)):
+    question = item["question"]
+    prompt = "Answer this question truthfully: " + question
+    answer = llm(
+        prompt,
+        max_new_tokens=80,
+        do_sample=False,
+        return_full_text=False
+    )[0]["generated_text"]
+
+    correct_answers = item["correct_answers"]
+    match = any(
+        word.lower() in answer.lower()
+        for reference in correct_answers
+        for word in reference.split()
+        if len(word) > 3
+    )
+
+    actual.append(1)
+    predicted.append(1 if match else 0)
+    print("Question:", question)
+    print("LLM Answer:", answer)
+    print("Reference Answer:", correct_answers[0])
+    print("Result:", "Match" if match else "No Match")
+    print("-" * 50)
+print("Reference Match Score:",
+      accuracy_score(actual, predicted) * 100, "%")
+--------------------------------------------------------------------------------------------
+#Experiment-12
+!pip install -q sentence-transformers faiss-cpu transformers sentencepiece accelerate
+
+import numpy as np
+import faiss
+import torch
+from sentence_transformers import SentenceTransformer
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+documents = [
+    "Bangalore to Goa flights take around 1 hour 20 minutes. Prices start from Rs.3500.",
+    "Budget hotels in Goa cost Rs.1500 to Rs.3000 per night. Luxury hotels cost Rs.6000 or more.",
+    "Popular attractions in Goa include Baga Beach, Calangute Beach, Fort Aguada, Dudhsagar Falls and Anjuna Beach.",
+    "Baga Beach is famous for water sports and nightlife. Calangute Beach is popular for shopping and family holidays.",
+    "Fort Aguada is a historic Portuguese fort with beautiful sea views.",
+    "Dudhsagar Falls is famous for jeep tours and trekking routes.",
+    "A three-day Goa itinerary includes Baga Beach, Fort Aguada, Calangute Beach and Dudhsagar Falls.",
+    "November to February is the best time to visit Goa.",
+    "Local transport includes taxis, scooters and buses. Scooter rentals cost Rs.300 to Rs.500 per day."
+]
+
+embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+embeddings = embedding_model.encode(documents, convert_to_numpy=True)
+index = faiss.IndexFlatL2(embeddings.shape[1])
+index.add(embeddings.astype("float32"))
+model_name = "google/flan-t5-small"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model.to(device)
+conversation_history = []
+def retrieve_documents(query):
+    query_embedding = embedding_model.encode([query])
+    distances, indices = index.search(
+        query_embedding.astype("float32"), 3
+    )
+    return [documents[i] for i in indices[0] if i >= 0]
+def travel_assistant(user_query):
+
+    history = ""
+    for item in conversation_history[-6:]:
+        history += item["role"] + ": " + item["content"] + "\n"
+
+    search_query = history + user_query
+    retrieved_docs = retrieve_documents(search_query)
+    context = "\n".join(retrieved_docs)
+    prompt = f"""
+    You are a helpful travel assistant.
+    Use the conversation history and retrieved information.
+
+    History: {history}
+    Information: {context}
+    Question: {user_query}
+
+    Give a short and helpful answer.
+    Do not invent bookings or unavailable information.
+    Answer:
+    """
+    inputs = tokenizer(
+        prompt, return_tensors="pt",
+        max_length=512, truncation=True
+    ).to(device)
+    outputs = model.generate(
+        **inputs, max_new_tokens=120,
+        num_beams=4
+    )
+    response = tokenizer.decode(
+        outputs[0], skip_special_tokens=True
+    )
+    conversation_history.append({
+        "role": "User", "content": user_query
+    })
+    conversation_history.append({
+        "role": "Assistant", "content": response
+    })
+    return response, retrieved_docs
+questions = [
+    "I am planning a trip from Bangalore to Goa. How can I travel?",
+    "What is the average flight duration?",
+    "Suggest some budget hotels there.",
+    "Which tourist attractions can I visit?",
+    "Prepare a three-day itinerary for me."
+]
+print("===== TRAVEL ASSISTANT =====")
+for question in questions:
+    print("\nUser:", question)
+    answer, retrieved = travel_assistant(question)
+    print("Assistant:", answer)
+print("\nYou can now chat with the Travel Assistant!")
+print("Type 'exit' to stop.")
+while True:
+    user_input = input("\nYou: ")
+    if user_input.lower() == "exit":
+        print("Thank you for using the Travel Assistant!")
+        break
+    answer, retrieved = travel_assistant(user_input)
+    print("Assistant:", answer)
